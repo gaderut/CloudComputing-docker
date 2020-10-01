@@ -1,0 +1,7 @@
+Flask==1.0.2
+flask-cors
+pandas
+numpy
+requests
+scikit-learn==0.22.2
+cassandra-driver
