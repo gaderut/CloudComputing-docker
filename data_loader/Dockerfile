@@ -1,15 +1,19 @@
 # set base image (host OS)
 FROM python:3.8
 
+ENV workflow=${workflow}
+ENV client_name=${client_name}
+ENV workflow_specification=${workflow_specification}
+
 # set the working directory in the container
 WORKDIR /usr/src/app
 
-# install dependencies
-RUN pip install cassandra-driver
-
 # copy the content of the local src directory to the working directory
 COPY src/ .
-COPY csv/ ./csv
+COPY requirements.txt . 
+
+# install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # command to run on container start
-CMD [ "python", "./data_loader.py" ]
+CMD [ "python", "./DataLoader.py" ]
