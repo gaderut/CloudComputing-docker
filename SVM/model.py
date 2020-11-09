@@ -6,10 +6,14 @@ import time
 from io import BytesIO
 import numpy as np
 import requests
+
+from HospitalDataPreprocessor import HospitalDataPreprocessor
 from svm import support_vector_machine
 from DataPreprocessor import DataPreprocessor
 from sklearn.model_selection import train_test_split
 from requestHandler import *
+import os
+import sys
 
 app = Flask(__name__)
 # CORS(app)
@@ -31,19 +35,16 @@ def append_ip():
 def build_model():
     '''
     request body{
-                "client_name": "amazon" ,
-                "workflow": "employee",
-                “workflow_specification”:[["1"],["2"],["3"]],
-                "ips" : {“1” : "10.0.12.31:5000", 
-                        “2” : "10.0.12.32:5001",
-                        “3” : "10.0.12.31:5002",
-                        "4":"10.0.12.33:5003"
-                        }
-                }
+        name: model name,
+        path: path to model
+    }
     '''
     jsondata = request.get_json()
-    name, _, __ = requestHandler.parseReq(jsondata, "nfw")
 
+    name, _, __ = requestHandler.parseReq(jsondata, "nfw")
+    # name, _, __ = requestHandler.parseReq(initReq, "fwf")
+    # name = jsondata["workflow"]+"#"+jsondata["client_name"]
+    client = jsondata["client_name"]
     if name not in model.keys():
         _model = support_vector_machine()
         model[name] = _model
@@ -52,7 +53,7 @@ def build_model():
         _preprocessor = DataPreprocessor()
         preprocessor[name] = _preprocessor
 
-    dataX, datay = preprocessor[name].getData()
+    dataX, datay = DataPreprocessor().getData(client)
     trainX,  testX, trainy, testy = train_test_split(
         dataX, datay, test_size=0.2)
 
@@ -60,6 +61,9 @@ def build_model():
 
     score = model[name].score(testX, testy)
 
+    # payload = {"test R square": str(score),
+    #            "result": "success",
+    #            }
     return str(score)
 
 
@@ -75,7 +79,8 @@ def init_model(initReq):
         _preprocessor = DataPreprocessor()
         preprocessor[name] = _preprocessor
 
-    dataX, datay = preprocessor[name].getData()
+    client = name.split("#")
+    dataX, datay = preprocessor[name].getData(client[1])
     trainX,  testX, trainy, testy = train_test_split(
         dataX, datay, test_size=0.2)
 
@@ -130,8 +135,14 @@ def predict():
 
 
 if __name__ == '__main__':
+    workflow = os.environ['workflow']
+    table = ""
+    if os.environ['client_name'] is not None:
+        table = os.environ['client_name']
+    else:
+        print("Provide env variables")
+        sys.exit(1)
 
-    data = json.loads(sys.argv[1])
 
     print('*loading SVM model...')
     init_model(data)

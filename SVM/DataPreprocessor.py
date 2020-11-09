@@ -36,8 +36,8 @@ class DataPreprocessor:
             'ccproj_db', wait_for_all_pools=True)
         self.session.execute('USE ccproj_db')
 
-    def getData(self):
-        self._countByGroup()
+    def getData(self,client):
+        self._countByGroup(client)
         # dayOfWeek = []
         # time = []
         features = []
@@ -81,9 +81,11 @@ class DataPreprocessor:
         # [1,2,3,4,5]
         return np.array(test_data).reshape(1, -1)
 
-    def _countByGroup(self):
+    def _countByGroup(self,client):
         self.group_count = {}
-        rows = self.session.execute('SELECT * FROM employee')
+
+        # rows = self.session.execute('SELECT * FROM employee')
+        rows = self.session.execute('SELECT * FROM ' + client)
         # with open('employeedata.csv', newline='\n') as csvfile:
         #     rows = csv.reader(csvfile, delimiter=',', quotechar='|')
         # next(rows)
