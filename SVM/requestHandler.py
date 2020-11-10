@@ -35,12 +35,13 @@ class requestHandler:
             return (workflowName+"#"+name, data, analytics)
 
         elif reqType == "fwf":
+            splitt = body.split("#")
+            name = body[1]
+            workflowName = body[1]
+            # seq = body["workflow_specification"]
 
-            name = body["client_name"]
-            workflowName = body["workflow"]
-            seq = body["workflow_specification"]
-
-            return (workflowName+"#"+name, data, analytics)
+            # return (workflowName+"#"+name, data, analytics)
+            return (workflowName + "#" + name, None, None)
 
     def _newWorkFlow(self, workFlowID, sequence, IPs):
         '''

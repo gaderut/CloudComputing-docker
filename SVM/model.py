@@ -67,7 +67,8 @@ def build_model():
     return str(score)
 
 
-def init_model(initReq):
+def init_model(workflow, client):
+    initReq = workflow+"#"+client
 
     name, _, __ = requestHandler.parseReq(initReq, "fwf")
 
@@ -143,9 +144,9 @@ if __name__ == '__main__':
         print("Provide env variables")
         sys.exit(1)
 
-
     print('*loading SVM model...')
-    init_model(data)
+    # init_model(data)
+    init_model(workflow, table)
     print('*starting flask app...')
     # host='0.0.0.0', port=8765
     app.run(debug=True, host="0.0.0.0", port=8765)
