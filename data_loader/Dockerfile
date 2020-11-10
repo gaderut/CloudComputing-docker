@@ -3,7 +3,6 @@ FROM python:3.8
 
 ENV workflow=${workflow}
 ENV client_name=${client_name}
-ENV workflow_specification=${workflow_specification}
 
 # set the working directory in the container
 WORKDIR /usr/src/app
