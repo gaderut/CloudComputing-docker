@@ -13,21 +13,19 @@ api = Api(app)
 log.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 #HashMap
 emp_dict = {}
-emp_add_ips = {}
 hosp_dict = {}
-hosp_add_ips = {}
 
 ##################################################
 def updateHashMap(wf, comp, order, ip_list):
+    ips ={}
+    if ip_list != 0: ips = ip_list
+
+    h_key = {"order": order, "ips": ips}
     if (wf.upper() == "EMPLOYEE"):
-        emp_dict[comp] = order
-        if ip_list != 0:
-                emp_add_ips["ips"] = ip_list
+        emp_dict[comp] = h_key
 
     if (wf.upper() == "HOSPITAL"):
-        hosp_dict[comp] = order
-        if ip_list != 0:
-                hosp_add_ips["ips"] = ip_list
+        hosp_dict[comp] = h_key
 
 def getComponentURL(n, ip_add):
     url_string = "http://"
@@ -36,7 +34,7 @@ def getComponentURL(n, ip_add):
     elif n == "3":
         url_string = url_string + ip_add + "/svm/predict"
     elif n == "4":
-        url_string = url_string + ip_add + "/analytics"
+        url_string = url_string + ip_add + "/put_result"
     else:
         msg = "DataLoader Error getComponentURL: Unable to find the service component, no Service component found with code: " + n
         log.info(msg)
@@ -94,12 +92,13 @@ class DataLoader:
         dept1 = ["1", "2", "3", "4", "5", "6"]
         gender1 = ["male", "female"]
         race1 = ["1", "2", "3", "4", "5", "6"]
-        day1 = ['MON', "TUE", 'WED', 'THU', "FRI"]
+        day1 = ["MON", "TUE", "WED", "THU", "FRI"]
         checkin1 = ["8:00", "8:30", "9:00",
                     "9:30", "10:00", "10:30",
                     "11:00", "11:30", "12:00",
                     "12:30", "13:00", "13:30", "14:00"]
         duration1 = ["1", "2", "3", "4", "5", "6", "7", "8"]
+
         # Insert query format
         ins_stat = "INSERT INTO " + usr_name + """(UU_ID, EMP_ID, DEPT_TYPE, GENDER, RACE, DAY_OF_WEEK, CHECKIN_DATETIME, DURATION)
                                                 VALUES (now(), ?, ?, ?, ?, ?, ?, ?)"""
@@ -149,7 +148,7 @@ class DataLoader:
                                             hadm_id DECIMAL,
                                             hospital_expire_flag DECIMAL,
                                             insurance DECIMAL,
-                                            total_time_icu   DECIMAL,
+                                            duration   TEXT,
                                             num_in_icu DECIMAL,
                                             amount DECIMAL,
                                             rate DECIMAL,
@@ -158,7 +157,8 @@ class DataLoader:
                                             dilution_value DECIMAL,
                                             abnormal_count DECIMAL,
                                             item_distinct_abnormal DECIMAL,
-                                            checkin_time TEXT);"""
+                                            checkin_datetime TEXT,
+                                            day_of_week TEXT);"""
         try:
             cre_tbl = self.session.prepare(stat1)
             self.session.execute(cre_tbl)
@@ -173,12 +173,15 @@ class DataLoader:
         status = 0
         hospital_expire_flag1 = [1, 2]
         insurance1 = [1, 2, 3, 4, 5]
+        day1 = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+        duration1 = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"]
+
         checkin_time1 = ["00:00", "00:30", "01:00", "01:30", "02:00", "02:30", "03:00", "03:30", "04:00", "04:30", "05:00", "05:30", "06:00",
                          "06:30","07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30"]
         # Insert query format
-        ins_stat = "INSERT INTO " + usr_name + """ (uu_id, hadm_id, hospital_expire_flag, insurance, total_time_icu, num_in_icu,
-                                                               amount, rate, total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_time)
-                                                               VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        ins_stat = "INSERT INTO " + usr_name + """ (uu_id, hadm_id, hospital_expire_flag, insurance, duration, num_in_icu,
+                                                               amount, rate, total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_datetime, day_of_week)
+                                                               VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
         try:
             insert_q = self.session.prepare(ins_stat)
         #generate data
@@ -186,7 +189,7 @@ class DataLoader:
                 hadm_id = i
                 hospital_expire_flag = random.choice(hospital_expire_flag1)
                 insurance = random.choice(insurance1)
-                total_time_icu = random.uniform(0.002428259, 1)
+                duration = random.choice(duration1)
                 num_in_icu = random.uniform(0.142857143, 1)
                 amount = random.uniform(-0.013434843, 1)
                 rate = random.uniform(0, 1)
@@ -195,10 +198,11 @@ class DataLoader:
                 dilution_value = random.uniform(0, 1)
                 abnormal_count = random.uniform(0.001908852, 1)
                 item_distinct_abnormal = random.uniform(0.059405941, 1)
-                checkin_time = random.choice(checkin_time1)
+                checkin_datetime = random.choice(checkin_time1)
+                day_of_week = random.choice(day1)
                 self.session.execute(insert_q,
-                             [hadm_id, hospital_expire_flag, insurance, total_time_icu, num_in_icu, amount, rate,
-                             total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_time])
+                             [hadm_id, hospital_expire_flag, insurance, duration, num_in_icu, amount, rate,
+                             total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_datetime, day_of_week])
         except:
             status = -1
             self.session.shutdown()
@@ -208,16 +212,16 @@ class DataLoader:
         # define constants
         status = 0
         # Insert query format
-        ins_stat = "INSERT INTO " + usr_name + """ (uu_id, hadm_id, hospital_expire_flag, insurance, total_time_icu, num_in_icu,
-                                                                       amount, rate, total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_time)
-                                                                       VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        ins_stat = "INSERT INTO " + usr_name + """ (uu_id, hadm_id, hospital_expire_flag, insurance, duration, num_in_icu,
+                                                                       amount, rate, total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_datetime, day_of_week)
+                                                                       VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
         try:
             insert_q = self.session.prepare(ins_stat)
             #generate data
             hadm_id = data["hadm_id"]
             hospital_expire_flag = data["hospital_expire_flag"]
             insurance = data["insurance"]
-            total_time_icu = data["total_time_icu"]
+            duration = data["duration"]
             num_in_icu = data["num_in_icu"]
             amount = data["amount"]
             rate = data["rate"]
@@ -226,10 +230,11 @@ class DataLoader:
             dilution_value = data["dilution_value"]
             abnormal_count = data["abnormal_count"]
             item_distinct_abnormal = data["item_distinct_abnormal"]
-            checkin_time = data["checkin_time"]
+            checkin_datetime = data["checkin_datetime"]
+            day_of_week = data["day_of_week"]
             self.session.execute(insert_q,
-                             [hadm_id, hospital_expire_flag, insurance, total_time_icu, num_in_icu, amount, rate,
-                             total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_time])
+                             [hadm_id, hospital_expire_flag, insurance, duration, num_in_icu, amount, rate,
+                             total_items, value, dilution_value, abnormal_count, item_distinct_abnormal, checkin_datetime, day_of_week])
         except:
             status = -1
             self.session.shutdown()
@@ -323,6 +328,8 @@ def dataloader():
         ip_list = 0
     #update hashmap with workflow
     updateHashMap(workflow, comp_name, order, ip_list)
+    log.info("DataLoader - HashMap Update complete for the new Key: (" + workflow + ", " + comp_name + ")")
+    print("DataLoader - HashMap Update complete for the new Key: (" + workflow + ", " + comp_name + ")")
     end = timer()
     t = str(timedelta(seconds=end - start))
     dataloader = {"workflow":  workflow, "comp_name": comp_name, "start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}
@@ -344,8 +351,8 @@ def dataflow_append():
     # Workflow check - Hospital flow or Employee flow and switch to the corresponding block of code
     if (workflow.upper() == "EMPLOYEE"):
         #get the workflow and list
-        order = emp_dict[comp_name]
-        ip_list = emp_add_ips["ips"]
+        order = emp_dict[comp_name]["order"]
+        ip_list = emp_dict[comp_name]["ips"]
         log.info("DataLoader Append - Appending new data to the table.......")
         print("DataLoader Append - Appending new data to the table.......")
         status = db1.employee_append_data(comp_name, data)
@@ -361,8 +368,8 @@ def dataflow_append():
         # end of if status == 0:
     elif (workflow.upper() == "HOSPITAL"):
         # get the workflow and list
-        order = hosp_dict[comp_name]
-        ip_list = hosp_add_ips["ips"]
+        order = hosp_dict[comp_name]["order"]
+        ip_list = hosp_dict[comp_name]["ips"]
         log.info("DataLoader Append - Appending new data to the table.......")
         print("DataLoader Append - Appending new data to the table.......")
         status = db1.hospital_append_data(comp_name, data)
@@ -424,7 +431,6 @@ def Dataloader_Launch(req):
     #get request parameters
     workflow = req["workflow"]
     comp_name = req["client_name"]
-    order = list(req["workflow_specification"])
     res = 0
     status1 = status2 = -1
     #start workflow
@@ -495,12 +501,6 @@ def Dataloader_Launch(req):
     # end of if res <= 0:
 
     db1.session.shutdown()
-    try:
-        ip_list = req["ips"]
-    except:
-        ip_list = 0
-    #update hashmap with workflow
-    updateHashMap(workflow, comp_name, order, ip_list)
     end = timer()
     t = str(timedelta(seconds=end - start))
     msg = {"status": 200, "dataloader": {"workflow": workflow, "comp_name": comp_name, "start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}}
@@ -509,10 +509,9 @@ def Dataloader_Launch(req):
 if __name__ == "__main__":
     workflow = os.environ['workflow']
     client_name = os.environ['client_name']
-    workflow_specification = os.environ['workflow_specification']
     log.info("DataLoader: initializing the process.......")
     print("DataLoader: initializing the process.......")
-    content = {"client_name": client_name, "workflow": workflow, "workflow_specification": workflow_specification}
+    content = {"client_name": client_name, "workflow": workflow}
     with app.app_context():
         st = Dataloader_Launch(content)
         result = st["dataloader"]
