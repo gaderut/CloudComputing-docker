@@ -37,7 +37,7 @@ class requestHandler:
         elif reqType == "fwf":
             splitt = body.split("#")
             name = body[1]
-            workflowName = body[1]
+            workflowName = body[0]
             # seq = body["workflow_specification"]
 
             # return (workflowName+"#"+name, data, analytics)

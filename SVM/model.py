@@ -80,8 +80,7 @@ def init_model(workflow, client):
         _preprocessor = DataPreprocessor()
         preprocessor[name] = _preprocessor
 
-    client = name.split("#")
-    dataX, datay = preprocessor[name].getData(client[1])
+    dataX, datay = preprocessor[name].getData(client)
     trainX,  testX, trainy, testy = train_test_split(
         dataX, datay, test_size=0.2)
 
