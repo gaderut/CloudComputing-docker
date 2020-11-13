@@ -391,7 +391,7 @@ def dataflow_append():
     #Prepare forward request Json
     for_req = {}
     analytics = [{"start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}]
-    for_req["request"] = req
+    for_req = req
     for_req["analytics"] = analytics
     log.info("DataLoader: Forwarding a request to the next component.......")
     log.info(for_req)
@@ -405,6 +405,7 @@ def dataflow_append():
                 log.info(FWD_URL)
                 fw_res = requests.post(FWD_URL, headers={'content-type': 'application/json'}, json=for_req, timeout=120)
                 if fw_res.status_code != 200:
+                    log.info(str(fw_res.json()))
                     log.info("DataLoader ERROR: Fail in API call, requested service is not available: \n" + FWD_URL)
                 else:
                     log.info("DataLoader: API call is successful for component :" + str(i))
