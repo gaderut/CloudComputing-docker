@@ -4,8 +4,7 @@ import random
 from flask import Flask, request, jsonify
 from flask_restful import Api
 from cassandra.cluster import Cluster, DCAwareRoundRobinPolicy
-from timeit import default_timer as timer
-from datetime import timedelta
+import time
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
@@ -14,7 +13,7 @@ log.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 #HashMap
 emp_dict = {}
 hosp_dict = {}
-
+first_call_result= {}
 ##################################################
 def updateHashMap(wf, comp, order, ip_list):
     h_key = {"order": order, "ips": ip_list}
@@ -188,7 +187,7 @@ class DataLoader:
                 hospital_expire_flag = random.choice(hospital_expire_flag1)
                 insurance = random.choice(insurance1)
                 duration = random.choice(duration1)
-                num_in_icu = random.uniform(0.142857143, 1)
+                num_in_icu = random.randint(1, 40)
                 amount = random.uniform(-0.013434843, 1)
                 rate = random.uniform(0, 1)
                 total_items = random.uniform(0.093117409, 1)
@@ -246,7 +245,7 @@ class DataLoader:
 
 @app.route("/dataloader", methods=['POST', 'GET'])
 def dataloader():
-    start = timer()
+    start = time.time()
     #get request parameters
     req = request.get_json()
     workflow = req["workflow"]
@@ -265,17 +264,18 @@ def dataloader():
     log.info("DataLoader - Starting workflow: " + workflow)
     db1 = DataLoader()
     #Check if company name is already exist if yes then get records count
-    res = db1.validation(comp_name)
+    tbl_name = workflow + "_" + comp_name
+    res = db1.validation(tbl_name)
     if res <= 0:
         res = db1.rec_cnt
         log.info("DataLoader - Creating a new table for the client: " + comp_name)
         #Workflow check - Hospital flow or Employee flow and switch to the corresponding block of code
         if (workflow.upper() == "EMPLOYEE"):
-            status1 = db1.employee_create_schema(comp_name)
+            status1 = db1.employee_create_schema(tbl_name)
             if status1 == 0:
-                log.info("DataLoader - A new Table created successfully: " + db1.KEYSPACE + "." + comp_name)
+                log.info("DataLoader - A new Table created successfully: " + db1.KEYSPACE + "." + tbl_name)
                 log.info("DataLoader - Progressing initial data loading.......")
-                status2 = db1.employee_data_gen(comp_name)
+                status2 = db1.employee_data_gen(tbl_name)
                 if status2 == 0:
                     log.info("DataLoader - Data Loaded Successfully. Total Number of records: " + str(res))
                 else:
@@ -289,11 +289,11 @@ def dataloader():
                 return jsonify(dataloader), 404
             # end of if status1 == 0:
         elif (workflow.upper() == "HOSPITAL"):
-            status1 = db1.hospital_create_schema(comp_name)
+            status1 = db1.hospital_create_schema(tbl_name)
             if status1 == 0:
-                log.info("DataLoader - A new Table created successfully: " + db1.KEYSPACE + "." + comp_name)
+                log.info("DataLoader - A new Table created successfully: " + db1.KEYSPACE + "." + tbl_name)
                 log.info("DataLoader - Progressing initial data loading.......")
-                status2 = db1.hospital_data_gen(comp_name)
+                status2 = db1.hospital_data_gen(tbl_name)
                 if status2 == 0:
                     log.info("DataLoader - Data Loaded Successfully. Total Number of records: " + str(res))
                 else:
@@ -325,14 +325,17 @@ def dataloader():
     if (workflow.upper() == "HOSPITAL"):
         log.info(str(hosp_dict[comp_name]))
 
-    end = timer()
-    t = str(timedelta(seconds=end - start))
-    dataloader = {"workflow":  workflow, "comp_name": comp_name, "start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}
+    end = time.time()
+    t = end - start
+    if (first_call_result["comp_name"] == comp_name) and (first_call_result["workflow"] == workflow):
+        dataloader = first_call_result["dataloader"]
+    else:
+        dataloader = {"start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}
     return jsonify(dataloader), 200
 
 @app.route("/dataflow_append", methods=['POST', 'GET'])
 def dataflow_append():
-    start = timer()
+    start = time.time()
     # get request parameters
     req = request.get_json()
     workflow = req["workflow"]
@@ -344,6 +347,7 @@ def dataflow_append():
     log.info("data = " + str(data))
     res = 0
     status = -1
+    tbl_name = workflow + "_" + comp_name
     # start workflow
     log.info("DataLoader Append - Starting data addition process for: " + workflow)
     db1 = DataLoader()
@@ -353,9 +357,9 @@ def dataflow_append():
         order = emp_dict[comp_name]["order"]
         ip_list = emp_dict[comp_name]["ips"]
         log.info("DataLoader Append - Appending new data to the table.......")
-        status = db1.employee_append_data(comp_name, data)
+        status = db1.employee_append_data(tbl_name, data)
         if status == 0:
-            res = db1.validation(comp_name)
+            res = db1.validation(tbl_name)
             log.info("DataLoader Append - New record added Successfully. Total Number of records in table : " + str(res))
         else:
             msg = {"DataLoader Append employee_append_data ERROR": "Failed in data addition, No new records added."}
@@ -367,9 +371,9 @@ def dataflow_append():
         order = hosp_dict[comp_name]["order"]
         ip_list = hosp_dict[comp_name]["ips"]
         log.info("DataLoader Append - Appending new data to the table.......")
-        status = db1.hospital_append_data(comp_name, data)
+        status = db1.hospital_append_data(tbl_name, data)
         if status == 0:
-            res = db1.validation(comp_name)
+            res = db1.validation(tbl_name)
             log.info("DataLoader Append - New record added Successfully. Total Number of records in table : " + str(res))
         else:
             msg = {"DataLoader Append hospital_append_data ERROR": "Failed in data addition, No new records added."}
@@ -382,16 +386,13 @@ def dataflow_append():
         return jsonify(msg), 404
         # end of if (workflow.upper() == "EMPLOYEE"):
     db1.session.shutdown()
-    end = timer()
-    t = str(timedelta(seconds=end - start))
-    msg = {"workflow": workflow, "comp_name": comp_name, "start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}
-    db1.session.shutdown()
-    end = timer()
-    t = str(timedelta(seconds=end - start))
+    end = time.time()
+    t = end - start
     #Prepare forward request Json
     for_req = {}
     analytics = [{"start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}]
-    for_req["request"] = req
+    msg = {"start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}
+    for_req = req
     for_req["analytics"] = analytics
     log.info("DataLoader: Forwarding a request to the next component.......")
     log.info(for_req)
@@ -405,13 +406,14 @@ def dataflow_append():
                 log.info(FWD_URL)
                 fw_res = requests.post(FWD_URL, headers={'content-type': 'application/json'}, json=for_req, timeout=120)
                 if fw_res.status_code != 200:
+                    log.info(str(fw_res.json()))
                     log.info("DataLoader ERROR: Fail in API call, requested service is not available: \n" + FWD_URL)
                 else:
                     log.info("DataLoader: API call is successful for component :" + str(i))
     return jsonify(msg), 200
 
 def Dataloader_Launch(req):
-    start = timer()
+    start = time.time()
     #get request parameters
     workflow = req["workflow"]
     comp_name = req["client_name"]
@@ -424,17 +426,18 @@ def Dataloader_Launch(req):
     log.info("DataLoader Launch - Starting workflow: " + workflow)
     db1 = DataLoader()
     #Check if company name is already exist if yes then get records count
-    res = db1.validation(comp_name)
+    tbl_name = workflow + "_" + comp_name
+    res = db1.validation(tbl_name)
     if res <= 0:
         res = db1.rec_cnt
         log.info("DataLoader Launch - Creating a new table for the client: " + comp_name)
         #Workflow check - Hospital flow or Employee flow and switch to the corresponding block of code
         if (workflow.upper() == "EMPLOYEE"):
-            status1 = db1.employee_create_schema(comp_name)
+            status1 = db1.employee_create_schema(tbl_name)
             if status1 == 0:
-                log.info("DataLoader Launch - A new Table created successfully: " + db1.KEYSPACE + "." + comp_name)
+                log.info("DataLoader Launch - A new Table created successfully: " + db1.KEYSPACE + "." + tbl_name)
                 log.info("DataLoader Launch - Progressing initial data loading.......")
-                status2 = db1.employee_data_gen(comp_name)
+                status2 = db1.employee_data_gen(tbl_name)
                 if status2 == 0:
                     log.info("DataLoader Launch - Data Loaded Successfully. Total Number of records: " + str(res))
                 else:
@@ -448,11 +451,11 @@ def Dataloader_Launch(req):
                 return msg
             # end of if status1 == 0:
         elif (workflow.upper() == "HOSPITAL"):
-            status1 = db1.hospital_create_schema(comp_name)
+            status1 = db1.hospital_create_schema(tbl_name)
             if status1 == 0:
-                log.info("DataLoader Launch - A new Table created successfully: " + db1.KEYSPACE + "." + comp_name)
+                log.info("DataLoader Launch - A new Table created successfully: " + db1.KEYSPACE + "." + tbl_name)
                 log.info("DataLoader Launch - Progressing initial data loading.......")
-                status2 = db1.hospital_data_gen(comp_name)
+                status2 = db1.hospital_data_gen(tbl_name)
                 if status2 == 0:
                     log.info("DataLoader Launch - Data Loaded Successfully. Total Number of records: " + str(res))
                 else:
@@ -475,9 +478,9 @@ def Dataloader_Launch(req):
     # end of if res <= 0:
 
     db1.session.shutdown()
-    end = timer()
-    t = str(timedelta(seconds=end - start))
-    msg = {"status": 200, "dataloader": {"workflow": workflow, "comp_name": comp_name, "start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}}
+    end = time.time()
+    t = end - start
+    msg = {"status": 200, "workflow": workflow, "comp_name": comp_name, "dataloader": {"start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}}
     return msg
 
 if __name__ == "__main__":
@@ -487,12 +490,13 @@ if __name__ == "__main__":
     content = {"client_name": client_name, "workflow": workflow}
     with app.app_context():
         st = Dataloader_Launch(content)
-        result = st["dataloader"]
         if st["status"] == 200:
             log.info("DataLoader: started successfully.")
-            log.info(result)
+            log.info(st)
+            first_call_result = st
             app.run(debug=True, host="0.0.0.0", port=303)
         else:
             log.info("DataLoader ERROR: DataLoader Failed to start application")
             log.info(str(st))
             sys.exit(1)
+            
