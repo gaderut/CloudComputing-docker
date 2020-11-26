@@ -14,6 +14,16 @@ CORS(app)
 def index():
     return 'Server is alive!!'
 
+
+# http://d925019d0b9d.ngrok.io/graph?g0.expr=(1%20-%20avg(irate(node_cpu_seconds_total%7Bmode%3D%22idle%22%2Cinstance%3D~%2210.*%22%7D%5B10m%5D))%20by%20(instance))%20*%20100&g0.tab=0&g0.stacked=0&g0.range_input=1h&g1.expr=100%20*%20(1%20-%20((avg_over_time(node_memory_MemFree_bytes%7Binstance%3D~%2210.*%22%7D%5B1m%5D)%20%2B%20avg_over_time(node_memory_Cached_bytes%7Binstance%3D~%2210.*%22%7D%5B1m%5D)%20%2B%20avg_over_time(node_memory_Buffers_bytes%7Binstance%3D~%2210.*%22%7D%5B1m%5D))%20%2F%20avg_over_time(node_memory_MemTotal_bytes%7Binstance%3D~%2210.*%22%7D%5B1m%5D)))&g1.tab=0&g1.stacked=0&g1.range_input=1h&g2.expr=sum(irate(node_network_transmit_bytes_total%7Binstance%3D~%2210.*%22%2C%20device!~%22lo%7Cbr.*%7Cveth.*%22%7D%5B1m%5D))%20by%20(instance)&g2.tab=0&g2.stacked=0&g2.range_input=1h&g3.expr=sum(irate(node_network_receive_bytes_total%7Binstance%3D~%2210.*%22%2C%20device!~%22lo%7Cbr.*%7Cveth.*%22%7D%5B1m%5D))%20by%20(instance)&g3.tab=0&g3.stacked=0&g3.range_input=1h
+# CPU
+# (1 - avg(irate(node_cpu_seconds_total{mode="idle",instance=~"10.*"}[10m])) by (instance)) * 100
+# Memory
+# 100 * (1 - ((avg_over_time(node_memory_MemFree_bytes{instance=~"10.*"}[1m]) + avg_over_time(node_memory_Cached_bytes{instance=~"10.*"}[1m]) + avg_over_time(node_memory_Buffers_bytes{instance=~"10.*"}[1m])) / avg_over_time(node_memory_MemTotal_bytes{instance=~"10.*"}[1m])))
+# Network
+# sum(irate(node_network_transmit_bytes_total{instance=~"10.*", device!~"lo|br.*|veth.*"}[1m])) by (instance)
+# sum(irate(node_network_receive_bytes_total{instance=~"10.*", device!~"lo|br.*|veth.*"}[1m])) by (instance)
+
 # sudo docker service ls --format {{.ID}}  | while read line ; do sudo docker service ps $line | sed '1 d'; done;
 # sudo docker service ls --format {{.ID}}  | while read line ; do sudo docker service rm $line; done;
 # command="docker service create --restart-condition=none -qd --name " + name + " busybox sleep 100"
