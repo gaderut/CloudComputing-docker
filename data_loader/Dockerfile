@@ -1,5 +1,6 @@
 # set base image (host OS)
-FROM python:3.8
+FROM python:3.8 as base
+FROM base as builder
 
 ENV workflow=${workflow}
 ENV client_name=${client_name}
