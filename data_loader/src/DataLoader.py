@@ -330,7 +330,7 @@ def dataloader():
     if (first_call_result["comp_name"] == comp_name) and (first_call_result["workflow"] == workflow):
         dataloader = first_call_result["dataloader"]
     else:
-        dataloader = {"start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}
+        dataloader = {"start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}
     return jsonify(dataloader), 200
 
 @app.route("/dataflow_append", methods=['POST', 'GET'])
@@ -480,7 +480,7 @@ def Dataloader_Launch(req):
     db1.session.shutdown()
     end = time.time()
     t = end - start
-    msg = {"status": 200, "workflow": workflow, "comp_name": comp_name, "dataloader": {"start_time": start, "end_time": end, "elapsed_time": t, "records_added": res}}
+    msg = {"status": 200, "workflow": workflow, "comp_name": comp_name, "dataloader": {"start_time": start, "end_time": end, "elapsed_time": t, "record_count": res}}
     return msg
 
 if __name__ == "__main__":
@@ -499,4 +499,3 @@ if __name__ == "__main__":
             log.info("DataLoader ERROR: DataLoader Failed to start application")
             log.info(str(st))
             sys.exit(1)
-            
